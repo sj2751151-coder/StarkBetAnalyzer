@@ -1,0 +1,28 @@
+<!doctype html><html lang="hi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Color Game Analyzer</title>
+<style>
+body{margin:0;background:#08152c;color:#eef5ff;font:15px system-ui;padding:14px}main{max-width:760px;margin:auto}.card{background:#10294d;border:1px solid #294b78;border-radius:14px;padding:15px;margin:12px 0}h1{font-size:25px}h2{font-size:18px}p,.muted{color:#b7cbe4;line-height:1.5}textarea,input,button{box-sizing:border-box;width:100%;padding:11px;margin:5px 0;border-radius:9px;border:1px solid #45658e;background:#071a35;color:white;font:inherit}textarea{min-height:90px}button{background:#2368c8;border:0;font-weight:bold}.row{display:flex;gap:8px}.row>*{flex:1}.stats,.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.stat,.n{background:#0a1e3a;border-radius:9px;padding:9px;text-align:center}.stat b{display:block;font-size:21px}.bar{height:6px;background:#294b78;margin-top:5px}.bar i{display:block;background:#59a1ff;height:6px}.small{font-size:12px;color:#b7cbe4}.warn{color:#ffd27a}@media(max-width:480px){.stats{grid-template-columns:repeat(2,1fr)}}
+</style><main><h1>Color Game Analyzer</h1><p>रिजल्ट रिकॉर्ड और statistical pattern जाँचें। यह hidden server algorithm नहीं पढ़ता और अगले नंबर की गारंटी नहीं देता।</p>
+<div class="card"><h2>1. रिजल्ट (नया से पुराना)</h2><p class="small">तुम्हारे स्क्रीनशॉट के 19 नंबर पहले से भरे हैं। 0–9 नंबर comma/space से डालें।</p><textarea id="data">8,4,8,0,8,7,4,9,8,6,1,8,8,1,2,4,8,4,0</textarea><div class="row"><button onclick="analyze()">Analyze</button><button onclick="add()">नया रिजल्ट जोड़ें</button></div><input id="new" type="number" min="0" max="9" placeholder="नया नंबर 0–9"><button onclick="clearData()">डेटा साफ करें</button><div id="count" class="small"></div></div>
+<div class="card"><h2>2. सारांश</h2><div id="stats" class="stats"></div><div id="verdict"></div></div>
+<div class="card"><h2>3. नंबरों की गिनती</h2><div id="freq" class="grid"></div></div>
+<div class="card"><h2>4. Pattern और fairness संकेत</h2><div id="tests"></div></div>
+<div class="card"><h2>5. सांख्यिकीय अनुमान</h2><div id="pred"></div><p class="small">पुरानी frequency भविष्य नहीं बताती। अगर नतीजे स्वतंत्र random हैं तो AI भी अगला नंबर भरोसे से नहीं जान सकता।</p></div>
+<div class="card"><h2>6. Price ID और Result मिलान</h2><p class="small">हर लाइन में Price,Result डालें। जैसे 355098,8</p><textarea id="pairs" placeholder="355098,8&#10;340054,4"></textarea><button onclick="pairs()">मिलान जाँचें</button><div id="pairout"></div></div>
+<div class="card"><h2>डेटा Export</h2><button onclick="csv()">CSV डाउनलोड</button><p class="small">यह पेज आपके फोन के ब्राउज़र में चलता है। कोई login, password या betting access नहीं लेता।</p></div></main>
+<script>
+const $=x=>document.getElementById(x);
+function nums(){return $('data').value.split(/[\s,;]+/).filter(Boolean).map(Number).filter(x=>Number.isInteger(x)&&x>=0&&x<=9)}
+function analyze(){let a=nums(),n=a.length,c=Array(10).fill(0);a.forEach(x=>c[x]++);let max=Math.max(0,...c),mode=c.indexOf(max),e=n/10,chi=n?c.reduce((s,x)=>s+(x-e)**2/e,0):0;
+$('count').textContent='Valid results: '+n;
+$('stats').innerHTML=[['कुल रिजल्ट',n],['सबसे ज्यादा',n?mode:'—'],['उसकी गिनती',n?max:'—'],['अलग नंबर',c.filter(x=>x).length],['लगातार समान',a.slice(1).filter((x,i)=>x===a[i]).length]].map(x=>`<div class="stat">${x[0]}<b>${x[1]}</b></div>`).join('');
+$('freq').innerHTML=c.map((v,i)=>`<div class="n"><b>${i}</b><br>${v} (${n?(100*v/n).toFixed(1):0}%)<div class="bar"><i style="width:${max?100*v/max:0}%"></i></div></div>`).join('');
+let tr={};for(let i=0;i<a.length-1;i++){let k=a[i]+'→'+a[i+1];tr[k]=(tr[k]||0)+1}let top=Object.entries(tr).sort((x,y)=>y[1]-x[1]).slice(0,4);
+$('tests').innerHTML=`<p>Uniform 0–9 model के मुकाबले chi-square: <b>${n?chi.toFixed(2):'—'}</b></p><p>आम लगातार जोड़े: ${top.map(x=>x[0]+' ('+x[1]+')').join(', ')||'डेटा नहीं'}</p><p class="warn">19 रिजल्ट बहुत छोटा sample है। इससे game fair या manipulated साबित नहीं होता। सही जाँच के लिए सैकड़ों लगातार रिजल्ट और स्वतंत्र audit चाहिए।</p>`;
+let r=a.slice(0,Math.min(30,n)),rc=Array(10).fill(0);r.forEach(x=>rc[x]++);let best=rc.map((v,i)=>({i,v})).sort((x,y)=>y.v-x.v).slice(0,3);
+$('pred').innerHTML=n?`हाल के ${r.length} रिजल्ट में सबसे आम: <b>${best.map(x=>x.i+' ('+x.v+')').join(', ')}</b><p class="warn">यह केवल historical ranking है, अगला नंबर predict करने का भरोसेमंद तरीका नहीं।</p>`:'पहले रिजल्ट डालें';}
+function add(){let v=$('new').value;if(v===''||!Number.isInteger(+v)||+v<0||+v>9)return alert('0 से 9 का नंबर डालें');$('data').value=v+','+$('data').value;$('new').value='';analyze()}
+function clearData(){if(confirm('सारा डेटा साफ करें?')){$('data').value='';analyze()}}
+function pairs(){let lines=$('pairs').value.trim().split('\n').filter(Boolean),ok=0,total=0,out=[];lines.forEach(l=>{let p=l.split(/[\s,]+/),id=p[0],r=+p[1];if(p.length>1&&/^\d+$/.test(id)&&Number.isInteger(r)&&r>=0&&r<=9){total++;let m=+id.slice(-1)===r;if(m)ok++;out.push(id+' → '+r+': '+(m?'match':'no match'))}});$('pairout').innerHTML=total?`<b>${ok}/${total} match (${(100*ok/total).toFixed(1)}%)</b><p>${out.join('<br>')}</p><p class="warn">यह मिलान भविष्य का result बताने का सबूत नहीं है।</p>`:'हर लाइन में Price,Result डालें।'}
+function csv(){let a=nums(),blob=new Blob(['round,result\n'+a.map((v,i)=>(i+1)+','+v).join('\n')],{type:'text/csv'}),u=URL.createObjectURL(blob),x=document.createElement('a');x.href=u;x.download='color-results.csv';x.click();URL.revokeObjectURL(u)}
+analyze();
+</script></html>
